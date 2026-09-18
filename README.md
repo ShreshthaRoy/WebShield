@@ -1,4 +1,4 @@
-# WebShield — Hybrid Phishing Detection & URL Risk Analysis System
+# WebShield- Hybrid Phishing Detection & URL Risk Analysis System
 
 WebShield is a hybrid cybersecurity system designed to detect and analyze potentially malicious websites in real time.
 
