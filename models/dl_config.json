@@ -1,0 +1,16 @@
+{
+    "model": "CNN + BiLSTM",
+    "char_level": true,
+    "filters": "",
+    "lower": true,
+    "max_words": 10000,
+    "max_length": 200,
+    "embedding_dim": 32,
+    "batch_size": 32,
+    "epochs_max": 15,
+    "random_state": 42,
+    "input_shape": [
+        null,
+        200
+    ]
+}

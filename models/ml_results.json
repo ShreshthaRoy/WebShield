@@ -1,0 +1,45 @@
+{
+    "Random Forest": {
+        "accuracy": 0.9485368314833501,
+        "precision": 0.960621761658031,
+        "recall": 0.9354187689202825,
+        "f1": 0.9478527607361963
+    },
+    "Logistic Regression": {
+        "accuracy": 0.8562058526740666,
+        "precision": 0.8975225225225225,
+        "recall": 0.8042381432896064,
+        "f1": 0.8483235763704098
+    },
+    "best_model": "Random Forest",
+    "feature_names": [
+        "url_length",
+        "domain_length",
+        "domain_dot_count",
+        "hyphen_count",
+        "special_character_count",
+        "https",
+        "suspicious_keyword_count",
+        "ip_address",
+        "at_symbol",
+        "url_depth",
+        "subdomain_count",
+        "suspicious_tld"
+    ],
+    "feature_importance": {
+        "url_length": 0.231975,
+        "domain_length": 0.234685,
+        "domain_dot_count": 0.169502,
+        "hyphen_count": 0.05304,
+        "special_character_count": 0.02997,
+        "https": 0.015773,
+        "suspicious_keyword_count": 0.01839,
+        "ip_address": 9.3e-05,
+        "at_symbol": 0.000987,
+        "url_depth": 0.09456,
+        "subdomain_count": 0.151024,
+        "suspicious_tld": 0.0
+    },
+    "dataset_size": 9908,
+    "test_size": 1982
+}
