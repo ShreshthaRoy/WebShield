@@ -6,6 +6,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 import socket
 import re
+from pathlib import Path
 
 
 # ============================================================
@@ -19,8 +20,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-HISTORY_FILE = "phishing_history.csv"
+BASE_DIR = Path(__file__).resolve().parent
+HISTORY_FILE = BASE_DIR / "phishing_history.csv"
 BACKEND_URL = "http://127.0.0.1:5000/analyze"
+HEALTH_URL = "http://127.0.0.1:5000/health"
 
 
 # ============================================================
@@ -31,7 +34,8 @@ BACKEND_URL = "http://127.0.0.1:5000/analyze"
 def load_history():
 
     try:
-        df = pd.read_csv(HISTORY_FILE)
+        # Skip malformed legacy rows instead of making the entire dashboard fail.
+        df = pd.read_csv(HISTORY_FILE, on_bad_lines="skip")
 
         if df.empty:
             return df
@@ -52,12 +56,29 @@ def load_history():
             "url",
             "risk_score",
             "status",
-            "time"
+            "time",
+            "ml_score",
+            "dl_score",
+            "model_score",
+            "url_risk",
+            "domain_risk",
+            "page_risk",
+            "page_analysis_available"
         ]
 
         for column in required_columns:
             if column not in df.columns:
-                df[column] = ""
+                df[column] = 0 if column in {
+                    "ml_score",
+                    "dl_score",
+                    "model_score"
+                } else ""
+
+        for column in ["ml_score", "dl_score", "model_score"]:
+            df[column] = pd.to_numeric(
+                df[column],
+                errors="coerce"
+            ).fillna(0)
 
         return df
 
@@ -68,7 +89,14 @@ def load_history():
                 "url",
                 "risk_score",
                 "status",
-                "time"
+                "time",
+                "ml_score",
+                "dl_score",
+                "model_score",
+                "url_risk",
+                "domain_risk",
+                "page_risk",
+                "page_analysis_available"
             ]
         )
 
@@ -80,10 +108,9 @@ def load_history():
 
         return pd.DataFrame(
             columns=[
-                "url",
-                "risk_score",
-                "status",
-                "time"
+                "url", "risk_score", "status", "time", "ml_score", "dl_score",
+                "model_score", "url_risk", "domain_risk", "page_risk",
+                "page_analysis_available"
             ]
         )
 
@@ -701,6 +728,173 @@ header {
 
 
 # ============================================================
+# LIGHT THEME — APPEARANCE OVERRIDE
+# ============================================================
+
+if st.session_state.get("webshield_theme", "🌙 Dark") == "☀️ Light":
+    st.markdown("""
+    <style>
+    .stApp,
+    [data-testid="stAppViewContainer"] {
+        background: #f4f7fb !important;
+        color: #172033 !important;
+    }
+
+    [data-testid="stHeader"] {
+        background: #f4f7fb !important;
+    }
+
+    [data-testid="stSidebar"] {
+        background: #ffffff !important;
+        border-right: 1px solid #e2e8f0 !important;
+    }
+
+    [data-testid="stSidebar"] * {
+        color: #334155 !important;
+    }
+
+    .main-title,
+    h1, h2, h3, h4, h5, h6 {
+        color: #0f172a !important;
+    }
+
+    .main-subtitle,
+    [data-testid="stCaptionContainer"],
+    .stCaption {
+        color: #64748b !important;
+    }
+
+    p, label,
+    .stMarkdown,
+    .stMarkdown p,
+    .stMarkdown li {
+        color: #334155 !important;
+    }
+
+    .stMarkdown strong {
+        color: #0f172a !important;
+    }
+
+    .card,
+    .architecture,
+    .info-card,
+    [data-testid="stVerticalBlockBorderWrapper"],
+    [data-testid="stMetric"],
+    [data-testid="stExpander"],
+    [data-testid="stVegaLiteChart"],
+    [data-testid="stArrowVegaLiteChart"],
+    [data-testid="stDataFrame"] {
+        background: #ffffff !important;
+        color: #1e293b !important;
+        border-color: #e2e8f0 !important;
+        box-shadow: 0 3px 12px rgba(15, 23, 42, 0.04) !important;
+    }
+
+    .card-title,
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricLabel"] *,
+    .info-text {
+        color: #64748b !important;
+    }
+
+    .card-value,
+    [data-testid="stMetricValue"],
+    [data-testid="stMetricValue"] * {
+        color: #0f172a !important;
+    }
+
+    .arch-step {
+        background: #eff6ff !important;
+        color: #1e3a8a !important;
+        border-color: #bfdbfe !important;
+    }
+
+    .safe-box {
+        background: #dcfce7 !important;
+        border-color: #86efac !important;
+        color: #166534 !important;
+    }
+
+    .warning-box {
+        background: #fef3c7 !important;
+        border-color: #fcd34d !important;
+        color: #92400e !important;
+    }
+
+    .danger-box {
+        background: #fee2e2 !important;
+        border-color: #fca5a5 !important;
+        color: #991b1b !important;
+    }
+
+    .website-url {
+        color: #1d4ed8 !important;
+    }
+
+    .website-time {
+        color: #64748b !important;
+    }
+
+    [data-testid="stTextInput"] input,
+    [data-testid="stNumberInput"] input,
+    [data-testid="stTextArea"] textarea {
+        background: #ffffff !important;
+        color: #0f172a !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    [data-testid="stSelectbox"] div[data-baseweb="select"],
+    [data-baseweb="popover"],
+    [data-baseweb="menu"] {
+        background: #ffffff !important;
+        border-color: #cbd5e1 !important;
+    }
+
+    [data-baseweb="menu"] *,
+    [data-testid="stSelectbox"] div[data-baseweb="select"] * {
+        color: #0f172a !important;
+    }
+
+    [data-testid="stExpander"] summary,
+    [data-testid="stExpander"] summary p {
+        color: #1e293b !important;
+    }
+
+    [data-testid="stDataFrame"] *,
+    [data-testid="stTable"] * {
+        color: #334155 !important;
+    }
+
+    button[data-baseweb="tab"] {
+        color: #475569 !important;
+    }
+
+    button[data-baseweb="tab"][aria-selected="true"] {
+        color: #1d4ed8 !important;
+    }
+
+    a {
+        color: #1d4ed8 !important;
+    }
+
+    hr {
+        border-color: #e2e8f0 !important;
+    }
+
+    code {
+        color: #1d4ed8 !important;
+        background: #eff6ff !important;
+    }
+
+    [data-testid="stProgress"] {
+        background: #e2e8f0 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+
+# ============================================================
 # BACKEND STATUS
 # ============================================================
 
@@ -709,7 +903,7 @@ def backend_status():
     try:
 
         response = requests.get(
-            "http://127.0.0.1:5000/",
+            HEALTH_URL,
             timeout=2
         )
 
@@ -728,13 +922,11 @@ def get_domain(url):
 
     try:
 
-        parsed = urlparse(str(url))
-
-        domain = parsed.netloc
-
-        if domain.startswith("www."):
-            domain = domain[4:]
-
+        candidate = str(url or "").strip()
+        if not candidate.startswith(("http://", "https://")):
+            candidate = "https://" + candidate
+        parsed = urlparse(candidate)
+        domain = (parsed.hostname or "").lower().removeprefix("www.")
         return domain
 
     except Exception:
@@ -1458,8 +1650,14 @@ def get_infrastructure_intelligence(
 with st.sidebar:
 
     st.markdown("## 🛡️ WebShield")
-
     st.caption("ADAPTIVE PHISHING DEFENSE")
+
+    theme = st.radio(
+        "🎨 APPEARANCE",
+        ["🌙 Dark", "☀️ Light"],
+        horizontal=True,
+        key="webshield_theme",
+    )
 
     st.divider()
 
@@ -1470,8 +1668,10 @@ with st.sidebar:
             "🔍 Live Scanner",
             "🚨 Threat Monitor",
             "📊 Analytics",
+            "🤖 ML vs DL Comparison",
             "🧠 Detection Intelligence",
-            "⚙️ System Status"
+            "⚙️ System Status",
+            "🎬 Demo Lab"
         ]
     )
 
@@ -1937,7 +2137,7 @@ if page == "🏠 Overview":
         st.success("🟢 Domain Analysis\n\nActive")
 
     with p4:
-        st.success("🟢 Page Analysis\n\nActive")
+        st.info("🧩 Page Telemetry\n\nProvided by the browser extension on supported pages")
 
 
 # ============================================================
@@ -2010,6 +2210,10 @@ elif page == "🔍 Live Scanner":
                     else:
 
                         result = response.json()
+
+                        # Flask records this scan once for both dashboard and extension.
+                        load_history.clear()
+                        df = load_history()
 
                         score = int(
                             float(
@@ -2142,10 +2346,10 @@ elif page == "🔍 Live Scanner":
                             )
 
                         with c4:
-
+                            page_score_value = breakdown.get("page_risk")
                             st.metric(
                                 "📄 Page Analysis",
-                                f"{breakdown.get('page_risk', 0)}%"
+                                f"{page_score_value}%" if page_score_value is not None else "Not analyzed"
                             )
 
                         # ------------------------------------------------
@@ -2681,6 +2885,88 @@ elif page == "🔍 Live Scanner":
 
 
 # ============================================================
+# DEMO LAB — REPEATABLE END-TO-END TESTS
+# ============================================================
+
+elif page == "🎬 Demo Lab":
+
+    page_header(
+        "🎬 Demo Lab",
+        "Repeatable, presentation-ready test suite for legitimate, suspicious and lookalike URLs"
+    )
+
+    st.info(
+        "This lab submits URL strings to your local WebShield API. It does not open the URLs or visit suspicious websites. "
+        "A URL result is a model/risk-engine assessment, not a guarantee of safety."
+    )
+
+    demo_cases = [
+        ("Official BIT homepage", "Expected legitimate", "https://bit-bangalore.edu.in/"),
+        ("BIT ISE department", "Expected legitimate", "https://bit-bangalore.edu.in/ise-about"),
+        ("Google homepage", "Expected legitimate", "https://www.google.com/"),
+        ("Brand-lookalike pattern", "Should raise suspicion", "https://microsoft.com.security-check.example/login/verify-account"),
+        ("IP-hosted login pattern", "Should raise suspicion", "http://192.0.2.10/login/verify-account"),
+        ("High-risk synthetic URL", "Should be high risk", "http://secure-login-verify-account-update-password-check.example-work.top/a/b/c/d"),
+        ("BIT spelling lookalike", "Should raise suspicion", "https://bit-banglore.edu.in/secure-login"),
+    ]
+
+    st.markdown("#### Included scenarios")
+    st.dataframe(
+        pd.DataFrame(demo_cases, columns=["Scenario", "Test intent", "URL string"]),
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    if st.button("▶ Run full demo suite", type="primary", use_container_width=True):
+        demo_rows = []
+        progress = st.progress(0, text="Starting WebShield checks…")
+        for index, (scenario, intent, test_url) in enumerate(demo_cases, start=1):
+            try:
+                response = requests.post(
+                    BACKEND_URL,
+                    json={"url": test_url, "page_analysis": {}},
+                    timeout=20,
+                )
+                if response.ok:
+                    result = response.json()
+                    breakdown = result.get("risk_breakdown", {})
+                    demo_rows.append({
+                        "Scenario": scenario,
+                        "Expected behaviour": intent,
+                        "Detected level": result.get("risk_level", result.get("status", "UNKNOWN")),
+                        "Hybrid risk": result.get("risk_score"),
+                        "Random Forest": breakdown.get("ml_score"),
+                        "CNN + BiLSTM": breakdown.get("dl_score"),
+                        "Domain risk": breakdown.get("domain_risk"),
+                        "Page telemetry": "Available" if result.get("page_analysis_available") else "Not provided in URL-only test",
+                        "Top signals": "; ".join((result.get("reasons") or [])[:3]) or "No structural signals returned",
+                        "URL": test_url,
+                    })
+                else:
+                    demo_rows.append({"Scenario": scenario, "Expected behaviour": intent, "Detected level": f"API error {response.status_code}", "URL": test_url})
+            except requests.RequestException as exc:
+                demo_rows.append({"Scenario": scenario, "Expected behaviour": intent, "Detected level": "BACKEND UNAVAILABLE", "Top signals": str(exc), "URL": test_url})
+            progress.progress(index / len(demo_cases), text=f"Checked {index}/{len(demo_cases)} scenarios")
+
+        progress.empty()
+        results_df = pd.DataFrame(demo_rows)
+        st.session_state["webshield_demo_results"] = results_df
+        load_history.clear()
+        df = load_history()
+
+    if "webshield_demo_results" in st.session_state:
+        results_df = st.session_state["webshield_demo_results"]
+        successful = results_df[results_df.get("Hybrid risk", pd.Series(dtype=float)).notna()] if "Hybrid risk" in results_df else pd.DataFrame()
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Scenarios completed", f"{len(successful)}/{len(demo_cases)}")
+        if not successful.empty:
+            c2.metric("Safe outcomes", int((successful["Detected level"] == "SAFE").sum()))
+            c3.metric("Flagged outcomes", int(successful["Detected level"].isin(["SUSPICIOUS", "HIGH RISK"]).sum()))
+        st.dataframe(results_df, use_container_width=True, hide_index=True)
+        st.caption("Expected behaviour is a test intent, not a forced label. Review any surprising result before the live panel demo.")
+
+
+# ============================================================
 # THREAT MONITOR
 # ============================================================
 
@@ -3020,6 +3306,95 @@ elif page == "📊 Analytics":
 
 
 # ============================================================
+# ML VS DL COMPARISON
+# ============================================================
+
+elif page == "🤖 ML vs DL Comparison":
+
+    page_header(
+        "🤖 ML vs DL Comparison",
+        "Compare phishing probabilities returned by the two models for your saved scans (not model accuracy)"
+    )
+
+    if df.empty:
+
+        st.info(
+            "No scan history available yet. Run a few URL scans first."
+        )
+
+    else:
+
+        ml_values = pd.to_numeric(
+            df.get("ml_score", pd.Series(dtype=float)),
+            errors="coerce"
+        ).fillna(0)
+
+        dl_values = pd.to_numeric(
+            df.get("dl_score", pd.Series(dtype=float)),
+            errors="coerce"
+        ).fillna(0)
+
+        model_values = pd.to_numeric(
+            df.get("model_score", pd.Series(dtype=float)),
+            errors="coerce"
+        ).fillna(0)
+
+        st.subheader("🧠 Model Comparison")
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.metric("🤖 Random Forest", f"{ml_values.mean():.2f}%")
+
+        with c2:
+            st.metric("🧠 CNN + BiLSTM", f"{dl_values.mean():.2f}%")
+
+        with c3:
+            st.metric("⚡ Combined Model", f"{model_values.mean():.2f}%")
+
+        comparison_df = pd.DataFrame({
+            "Model": ["Random Forest", "CNN + BiLSTM"],
+            "Average Phishing Probability": [
+                ml_values.mean(),
+                dl_values.mean()
+            ]
+        })
+
+        st.bar_chart(
+            comparison_df.set_index("Model"),
+            height=300
+        )
+
+        st.divider()
+
+        st.subheader("📊 Scan-by-Scan Model Comparison")
+
+        chart_df = pd.DataFrame({
+            "URL": df.get("url", pd.Series(dtype=str)).astype(str),
+            "Random Forest": ml_values,
+            "CNN + BiLSTM": dl_values,
+            "Combined Model": model_values
+        })
+
+        st.dataframe(
+            chart_df,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        difference = (ml_values - dl_values).abs()
+
+        st.metric(
+            "Average ML–DL Difference",
+            f"{difference.mean():.2f}%"
+        )
+
+        st.caption(
+            "Values are based on saved scan history. Random Forest is the traditional ML model, while CNN + BiLSTM is the deep-learning model."
+        )
+
+
+# ============================================================
 # DETECTION INTELLIGENCE
 # ============================================================
 
@@ -3097,16 +3472,16 @@ elif page == "🧠 Detection Intelligence":
     model_data = pd.DataFrame(
         {
             "Detection Layer": [
-                "Machine Learning",
+                "ML/DL Ensemble",
                 "URL Analysis",
                 "Domain Risk",
                 "Page Analysis"
             ],
             "Weight": [
-                40,
+                30,
                 25,
                 15,
-                20
+                30
             ]
         }
     )
@@ -3136,6 +3511,13 @@ elif page == "⚙️ System Status":
     )
 
     backend_online = backend_status()
+    health_payload = {}
+    if backend_online:
+        try:
+            health_response = requests.get(HEALTH_URL, timeout=3)
+            health_payload = health_response.json() if health_response.ok else {}
+        except (requests.RequestException, ValueError):
+            health_payload = {}
 
     c1, c2, c3 = st.columns(3)
 
@@ -3168,10 +3550,12 @@ elif page == "⚙️ System Status":
             )
 
     with c3:
-
-        st.success(
-            "🟢 ML Model\n\nLoaded"
-        )
+        model_states = health_payload.get("models", {})
+        all_models_ready = bool(model_states) and all(model_states.values())
+        if all_models_ready:
+            st.success("🟢 ML + DL Models\n\nLoaded")
+        else:
+            st.error("🔴 Model status\n\nCheck backend logs")
 
     st.divider()
 
