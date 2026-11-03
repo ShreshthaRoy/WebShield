@@ -1,11 +1,14 @@
-
-
 venv/
 __pycache__/
 *.pyc
-models/model.pkl
 .DS_Store
-data/raw/
+
+# Local secrets
 .env
 *.env
+
+# Large/raw source feeds
+data/raw/
+
+# Local browsing history
 phishing_history.csv

@@ -1,0 +1,20 @@
+{
+    "model": "Random Forest",
+    "feature_count": 12,
+    "feature_names": [
+        "url_length",
+        "domain_length",
+        "domain_dot_count",
+        "hyphen_count",
+        "special_character_count",
+        "https",
+        "suspicious_keyword_count",
+        "ip_address",
+        "at_symbol",
+        "url_depth",
+        "subdomain_count",
+        "suspicious_tld"
+    ],
+    "dataset": "PhishTank verified-online phishing + Tranco legitimate domains with realistic legitimate URL variants",
+    "random_state": 42
+}

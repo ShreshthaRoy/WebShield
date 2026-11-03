@@ -216,6 +216,11 @@ function requestTabData(
 
 function displayResult(data) {
 
+    if (data && data.error) {
+        showError(data.error);
+        return;
+    }
+
     const riskElement =
         document.getElementById("risk");
 
@@ -266,7 +271,7 @@ function displayResult(data) {
 
     }
 
-    else if (data.risk_score < 60) {
+    else if (data.risk_score < 70) {
 
         riskElement.classList.add(
             "suspicious"
@@ -298,6 +303,15 @@ function displayResult(data) {
             breakdown.ml_score
         );
 
+        setText(
+            "dl-score",
+            breakdown.dl_score
+        );
+
+        setBar(
+            "dl-bar",
+            breakdown.dl_score
+        );
 
         setText(
             "url-score",
@@ -313,7 +327,7 @@ function displayResult(data) {
 
         setText(
             "page-score",
-            breakdown.page_risk
+            breakdown.page_risk == null ? "Not analyzed" : breakdown.page_risk
         );
 
 
@@ -337,7 +351,7 @@ function displayResult(data) {
 
         setBar(
             "page-bar",
-            breakdown.page_risk
+            breakdown.page_risk == null ? 0 : breakdown.page_risk
         );
 
     }
@@ -503,7 +517,7 @@ function setText(
     if (element) {
 
         element.textContent =
-            value + "%";
+            value == null ? "Not analyzed" : value + "%";
 
     }
 
